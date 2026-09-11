@@ -3,6 +3,7 @@
 ![CI](https://github.com/rubiin/linkrot/actions/workflows/ci.yml/badge.svg)
 ![Release](https://img.shields.io/github/v/release/rubiin/linkrot)
 ![Go Report Card](https://goreportcard.com/badge/github.com/rubiin/linkrot)
+![GolangCI](https://golangci.com/badges/github.com/rubiin/linkrot.svg)
 ![License](https://img.shields.io/github/license/rubiin/linkrot)
 
 A fast link checker for local files, written in Go. Reads HTML, Markdown, and plain-text files, extracts the URLs inside them, and checks each one over HTTP — concurrently, with retries, caching, and per-host filtering.

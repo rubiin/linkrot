@@ -19,12 +19,11 @@ vet:
 
 # Format code
 fmt:
-    gofmt -w .
+    golangci-lint fmt
 
-# Lint: vet + fmt check + tests
+# Lint: golangci-lint (uses built-in defaults)
 lint:
-    go vet ./...
-    test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+    golangci-lint run 
 
 # Run linkrot against the repo's own docs
 self-check: build

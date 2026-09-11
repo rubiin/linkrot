@@ -122,7 +122,9 @@ func checkOnce(ctx context.Context, rawURL string, timeout time.Duration, userAg
 		}
 
 		// Drain the body so the connection can be reused.
+		//nolint:errcheck,staticcheck
 		io.Copy(io.Discard, resp.Body)
+		//nolint:errcheck,staticcheck
 		resp.Body.Close()
 
 		if resp.StatusCode >= 300 && resp.StatusCode < 400 && hop < maxRedirects {

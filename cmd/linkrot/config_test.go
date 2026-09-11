@@ -245,9 +245,13 @@ json: true
 
 func TestDefaultConfigPath(t *testing.T) {
 	oldXDG := os.Getenv("XDG_CONFIG_HOME")
-	defer os.Setenv("XDG_CONFIG_HOME", oldXDG)
+	if err := os.Setenv("XDG_CONFIG_HOME", oldXDG); err != nil {
+		t.Fatalf("failed to restore XDG_CONFIG_HOME: %v", err)
+	}
 
-	os.Unsetenv("XDG_CONFIG_HOME")
+	if err := os.Unsetenv("XDG_CONFIG_HOME"); err != nil {
+		t.Fatalf("failed to unset XDG_CONFIG_HOME: %v", err)
+	}
 	path := defaultConfigPath()
 	home, _ := os.UserHomeDir()
 	expected := filepath.Join(home, ".config", "linkrot", "config.yaml")
@@ -255,7 +259,9 @@ func TestDefaultConfigPath(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, path)
 	}
 
-	os.Setenv("XDG_CONFIG_HOME", "/custom/xdg")
+	if err := os.Setenv("XDG_CONFIG_HOME", "/custom/xdg"); err != nil {
+		t.Fatalf("failed to set XDG_CONFIG_HOME: %v", err)
+	}
 	path = defaultConfigPath()
 	expected = filepath.Join("/custom/xdg", "linkrot", "config.yaml")
 	if path != expected {
