@@ -24,16 +24,23 @@ type CheckConfig struct {
 	AllowFileExtensions []string      `yaml:"allow-file-extensions"`
 	IgnoreHosts         []string      `yaml:"ignore-hosts"`
 	JSONOutput          bool          `yaml:"json"`
+	Summary             *bool         `yaml:"summary"`
 	ConfigFile          string        `yaml:"-"`
 	Files               []string      `yaml:"-"`
 }
 
+// summaryFlag backs the --summary flag. Its value is transferred into
+// checkConfig.Summary after flag parsing so config precedence can treat it
+// like every other flag (see loadConfigFile).
+var summaryFlag bool
+
 var checkConfig = CheckConfig{
-	Threads:     10,
-	Timeout:     10 * time.Second,
-	CacheTTL:    259200 * time.Second, // 3 days
-	Retry:       2,
-	UserAgent:   "linkrot/0.1.0",
+	Threads:   10,
+	Timeout:   10 * time.Second,
+	CacheTTL:  259200 * time.Second, // 3 days
+	Retry:     2,
+	UserAgent: "linkrot/0.1.0",
+	Summary:   boolPtr(true), // summary line on by default in text output
 }
 
 var checkCmd = &cobra.Command{
@@ -58,6 +65,7 @@ func init() {
 	checkCmd.Flags().StringSliceVar(&checkConfig.AllowFileExtensions, "allow-file-extensions", nil, "only parse files with these extensions (comma-separated)")
 	checkCmd.Flags().StringSliceVar(&checkConfig.IgnoreHosts, "ignore-hosts", nil, "skip URLs whose host is in this list (comma-separated)")
 	checkCmd.Flags().BoolVar(&checkConfig.JSONOutput, "json", false, "output as JSON array")
+	checkCmd.Flags().BoolVar(&summaryFlag, "summary", true, "append a summary line (X alive, Y dead) to text output")
 	checkCmd.Flags().StringVarP(&checkConfig.ConfigFile, "config", "c", "", "path to YAML config file (default: XDG config dir)")
 	rootCmd.AddCommand(checkCmd)
 }
@@ -78,7 +86,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	results := checker.CheckAll(cmd.Context(), cfg, checkConfig.Files)
 
-	report.PrintResults(results, checkConfig.JSONOutput)
+	report.PrintResults(results, report.Options{
+		JSON:    checkConfig.JSONOutput,
+		Summary: summaryEnabled(),
+	})
 
 	for _, r := range results {
 		if !r.Alive {
@@ -93,6 +104,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 // applied when the corresponding flag was not explicitly set on the command
 // line (checked via cobra's Flags().Changed).
 func loadConfigFile(cmd *cobra.Command) error {
+	// Baseline: the parsed --summary flag value (default true). Config may
+	// override it below when the flag was not explicitly set.
+	checkConfig.Summary = &summaryFlag
+
 	cfgPath := checkConfig.ConfigFile
 	if cfgPath == "" {
 		cfgPath = defaultConfigPath()
@@ -147,8 +162,25 @@ func loadConfigFile(cmd *cobra.Command) error {
 	if !changed("json") && fileCfg.JSONOutput {
 		checkConfig.JSONOutput = true
 	}
+	if !changed("summary") && fileCfg.Summary != nil {
+		checkConfig.Summary = fileCfg.Summary
+	}
 
 	return nil
+}
+
+// summaryEnabled resolves the summary setting: the --summary flag wins when
+// explicitly set; otherwise the config file's summary key; otherwise the
+// built-in default (on).
+func summaryEnabled() bool {
+	if checkConfig.Summary != nil {
+		return *checkConfig.Summary
+	}
+	return true
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
 
 func defaultConfigPath() string {
@@ -161,5 +193,3 @@ func defaultConfigPath() string {
 	}
 	return filepath.Join(home, ".config", "linkrot", "config.yaml")
 }
-
-

@@ -23,8 +23,63 @@ func newTestFlagSet() *pflag.FlagSet {
 	fs.StringSlice("allow-file-extensions", nil, "")
 	fs.StringSlice("ignore-hosts", nil, "")
 	fs.Bool("json", false, "")
+	fs.Bool("summary", true, "")
 	fs.String("config", "", "")
 	return fs
+}
+
+func TestSummaryConfigPrecedence(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	reset := func() {
+		checkConfig = CheckConfig{
+			Threads:   10,
+			Timeout:   10 * time.Second,
+			CacheTTL:  259200 * time.Second,
+			Retry:     2,
+			UserAgent: "linkrot/0.1.0",
+			Summary:   boolPtr(true),
+		}
+	}
+
+	// 1. summary: false in config, no flag -> false (config applies)
+	configFile := filepath.Join(tmpDir, "off.yaml")
+	if err := os.WriteFile(configFile, []byte("summary: false\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	reset()
+	checkConfig.ConfigFile = configFile
+	cmd := &cobra.Command{Use: "check"}
+	cmd.Flags().AddFlagSet(newTestFlagSet())
+	if err := loadConfigFile(cmd); err != nil {
+		t.Fatal(err)
+	}
+	if summaryEnabled() {
+		t.Error("expected summary false from config (summary: false, no flag)")
+	}
+
+	// 2. summary: false in config, --summary=true flag set -> true (flag wins)
+	reset()
+	checkConfig.ConfigFile = configFile
+	cmd = &cobra.Command{Use: "check"}
+	fs := newTestFlagSet()
+	cmd.Flags().AddFlagSet(fs)
+	if err := fs.Set("summary", "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := loadConfigFile(cmd); err != nil {
+		t.Fatal(err)
+	}
+	if !summaryEnabled() {
+		t.Error("expected summary true (flag --summary=true overrides config summary: false)")
+	}
+
+	// 3. no config, no flag -> default true
+	reset()
+	checkConfig.ConfigFile = filepath.Join(tmpDir, "missing.yaml")
+	if !summaryEnabled() {
+		t.Error("expected default summary true")
+	}
 }
 
 func TestLoadConfigFile(t *testing.T) {
@@ -49,11 +104,11 @@ json: true
 
 	// Reset checkConfig to defaults
 	checkConfig = CheckConfig{
-		Threads:     10,
-		Timeout:     10 * time.Second,
-		CacheTTL:    259200 * time.Second,
-		Retry:       2,
-		UserAgent:   "linkrot/0.1.0",
+		Threads:   10,
+		Timeout:   10 * time.Second,
+		CacheTTL:  259200 * time.Second,
+		Retry:     2,
+		UserAgent: "linkrot/0.1.0",
 	}
 	checkConfig.ConfigFile = configFile
 
@@ -105,12 +160,12 @@ json: true
 	}
 
 	checkConfig = CheckConfig{
-		Threads:     10,
-		Timeout:     10 * time.Second,
-		CacheTTL:    259200 * time.Second,
-		Retry:       2,
-		UserAgent:   "linkrot/0.1.0",
-		JSONOutput:  false,
+		Threads:    10,
+		Timeout:    10 * time.Second,
+		CacheTTL:   259200 * time.Second,
+		Retry:      2,
+		UserAgent:  "linkrot/0.1.0",
+		JSONOutput: false,
 	}
 	checkConfig.ConfigFile = configFile
 
