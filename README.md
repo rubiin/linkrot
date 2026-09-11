@@ -2,8 +2,6 @@
 
 A fast link checker for local files, written in Go. Reads HTML, Markdown, and plain-text files, extracts the URLs inside them, and checks each one over HTTP — concurrently, with retries, caching, and per-host filtering.
 
-A Go replacement for the Python [`deadlink`](https://pypi.org/project/deadlink/) package.
-
 ## Install
 
 ```bash
