@@ -30,6 +30,10 @@ lint:
 self-check: build
     ./linkrot check README.md
 
+# Print the completion script for a shell (bash, zsh, fish, powershell)
+completions shell="bash":
+    ./linkrot completion {{shell}}
+
 # Clean build artifacts
 clean:
     rm -f linkrot

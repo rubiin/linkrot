@@ -34,6 +34,44 @@ Exit code is `1` if any dead link was found, `0` otherwise — so it drops strai
 
 Text output ends with a summary line (`Summary: X alive, Y dead`); disable it with `--summary=false` or `summary: false` in the config file. The summary is never added to `--json` output.
 
+## Shell completions
+
+Tab completion for commands and flags is built in via the `completion` command:
+
+**bash**
+
+```bash
+source <(linkrot completion bash)
+```
+
+To load it in every shell, add that line to `~/.bashrc`, or install the script:
+
+```bash
+linkrot completion bash > ~/.local/share/bash-completion/completions/linkrot
+```
+
+**zsh**
+
+```bash
+source <(linkrot completion zsh)
+# or install:
+linkrot completion zsh > "${fpath[1]}/_linkrot"
+```
+
+**fish**
+
+```fish
+linkrot completion fish | source
+# or install:
+linkrot completion fish > ~/.config/fish/completions/linkrot.fish
+```
+
+**powershell**
+
+```powershell
+linkrot completion powershell | Out-String | Invoke-Expression
+```
+
 ## Flags
 
 | Flag | Default | Description |
