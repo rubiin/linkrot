@@ -8,6 +8,7 @@ import (
 
 	term "github.com/mattn/go-isatty"
 
+	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -90,7 +91,20 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		IgnoreHosts:         checkConfig.IgnoreHosts,
 	}
 
+	useSpinner := !checkConfig.JSONOutput && colorEnabled()
+
+	var sp *spinner.Spinner
+	if useSpinner {
+		sp = spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+		sp.Suffix = " Checking links..."
+		sp.Start()
+	}
+
 	results := checker.CheckAll(cmd.Context(), cfg, checkConfig.Files)
+
+	if sp != nil {
+		sp.Stop()
+	}
 
 	report.PrintResults(results, report.Options{
 		JSON:    checkConfig.JSONOutput,

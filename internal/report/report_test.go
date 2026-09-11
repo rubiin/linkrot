@@ -156,8 +156,10 @@ func TestPrintTextWithError(t *testing.T) {
 
 	output := captureStdout(t, func() { PrintResults(results, Options{}) })
 
-	if !strings.Contains(output, "connection refused") {
-		t.Errorf("expected error text in output, got: %s", output)
+	// Error details are intentionally omitted from text output to keep it easy to scan;
+	// the dead link itself should still appear.
+	if !strings.Contains(output, "https://unreachable.test/x") {
+		t.Errorf("expected URL in output, got: %s", output)
 	}
 }
 

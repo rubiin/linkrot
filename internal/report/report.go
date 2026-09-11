@@ -12,9 +12,14 @@ import (
 )
 
 const (
-	ansiRed   = "\x1b[31m"
-	ansiGreen = "\x1b[32m"
-	ansiReset = "\x1b[0m"
+	ansiRed    = "\x1b[31m"
+	ansiGreen  = "\x1b[32m"
+	ansiOrange = "\x1b[38;5;208m"
+	ansiCyan   = "\x1b[36m"
+	ansiGray   = "\x1b[37m"
+	ansiDim    = "\x1b[2m"
+	ansiBold   = "\x1b[1m"
+	ansiReset  = "\x1b[0m"
 )
 
 type Options struct {
@@ -57,28 +62,36 @@ func printText(results []model.LinkCheck, opts Options) {
 		return
 	}
 
+	if opts.Summary {
+		fmt.Println()
+		fmt.Println(colorize("Links found: "+strconv.Itoa(len(results)), ansiGreen, opts.Color))
+		fmt.Println()
+	}
+
 	for _, r := range sortedDeadFirst(results) {
+		status := ""
 		if r.Alive {
-			fmt.Printf("%s → %s\n", r.URL, colorize(strconv.Itoa(r.Status), ansiGreen, opts.Color))
-			continue
+			status = fmt.Sprintf(" → %s", colorize(strconv.Itoa(r.Status), ansiGreen, opts.Color))
+		} else {
+			marker := "DEAD (err)"
+			if r.Status != 0 {
+				marker = fmt.Sprintf("DEAD (%d)", r.Status)
+			}
+			status = fmt.Sprintf(" → %s", colorize(marker, ansiRed, opts.Color))
 		}
 
-		marker := "→ DEAD (err)"
-		if r.Status != 0 {
-			marker = fmt.Sprintf("→ DEAD (%d)", r.Status)
-		}
-		msg := r.URL + " " + colorize(marker, ansiRed, opts.Color)
-		if r.Err != "" {
-			msg += fmt.Sprintf(" %s", r.Err)
-		}
+		url := colorize(truncateURL(r.URL), ansiCyan, opts.Color)
+		fmt.Println(url + status)
+
+		// Errors are omitted from text output to keep it easy to scan.
+		_ = r.Err
 		if len(r.RedirectChain) > 0 {
 			chain := make([]string, len(r.RedirectChain))
 			for i, step := range r.RedirectChain {
-				chain[i] = fmt.Sprintf("%d %s", step.Status, step.URL)
+				chain[i] = strconv.Itoa(step.Status) + " " + truncateURL(step.URL)
 			}
-			msg += fmt.Sprintf(" [redirect: %s]", strings.Join(chain, " -> "))
+			fmt.Printf("  redirect chain: %s\n", strings.Join(chain, " -> "))
 		}
-		fmt.Println(msg)
 	}
 
 	if opts.Summary {
@@ -88,9 +101,10 @@ func printText(results []model.LinkCheck, opts Options) {
 				alive++
 			}
 		}
-		fmt.Printf("Summary: %s, %s\n",
-			colorize(fmt.Sprintf("%d alive", alive), ansiGreen, opts.Color),
-			colorize(fmt.Sprintf("%d dead", len(results)-alive), ansiRed, opts.Color))
+		dead := len(results) - alive
+		fmt.Println("")
+		fmt.Println("Summary: " + colorize(strconv.Itoa(alive)+" alive", ansiGreen, opts.Color) +
+			", " + colorize(strconv.Itoa(dead)+" dead", ansiRed, opts.Color))
 	}
 }
 
@@ -129,6 +143,13 @@ func printJSON(results []model.LinkCheck) {
 		return
 	}
 	fmt.Println(string(data))
+}
+
+func truncateURL(url string) string {
+	if len(url) <= 90 {
+		return url
+	}
+	return url[:87] + "..."
 }
 
 func sortedDeadFirst(results []model.LinkCheck) []model.LinkCheck {
