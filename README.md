@@ -1,12 +1,13 @@
 # linkrot
 
-![CI](https://github.com/rubiin/linkrot/actions/workflows/ci.yml/badge.svg)
-![Release](https://img.shields.io/github/v/release/rubiin/linkrot)
-![Go Report Card](https://goreportcard.com/badge/github.com/rubiin/linkrot)
-![GolangCI](https://golangci.com/badges/github.com/rubiin/linkrot.svg)
-![License](https://img.shields.io/github/license/rubiin/linkrot)
+linkrot is a fast CLI link checker for local files. It reads HTML, Markdown, and plain-text files, extracts every URL, and checks each one over HTTP — concurrently, with retries, caching, and per-host filtering.
 
-A fast link checker for local files, written in Go. Reads HTML, Markdown, and plain-text files, extracts the URLs inside them, and checks each one over HTTP — concurrently, with retries, caching, and per-host filtering.
+- **Concurrency** — check many links in parallel with `-n`.
+- **Retries** — automatic retries on 502/503/504 and on connection errors.
+- **Cache** — cached results survive across runs for a configurable TTL.
+- **Filters** — skip whole hosts or limit parsing to certain file extensions.
+- **CI-friendly** — exit code `1` when any dead link is found, `0` otherwise.
+- **Shell completions** — built-in `linkrot completion` for bash, zsh, fish, and PowerShell.
 
 ## Install
 
@@ -14,34 +15,75 @@ A fast link checker for local files, written in Go. Reads HTML, Markdown, and pl
 go install linkrot/cmd/linkrot@latest
 ```
 
-## Usage
+This installs `linkrot` to `$GOPATH/bin` (or `$HOME/go/bin`). Make sure that directory is on your `PATH`.
+
+## Quick start
+
+Check a single file:
 
 ```bash
-linkrot check [flags] <files...>
+linkrot check README.md
 ```
 
+Check several files concurrently and output JSON:
+
 ```bash
-# Check links in one file
-linkrot check README.md
-
-# Check several files with 20 concurrent requests and JSON output
 linkrot check README.md docs/*.md -n 20 --json
+```
 
-# Ignore a host and only parse certain file types
+Ignore a host and restrict parsing to specific extensions:
+
+```bash
 linkrot check docs/* --ignore-hosts www.example.com --allow-file-extensions .md,.txt
 ```
 
-Exit code is `1` if any dead link was found, `0` otherwise — so it drops straight into CI.
+## Exit code
 
-Text output ends with a summary line (`Summary: X alive, Y dead`); disable it with `--summary=false` or `summary: false` in the config file. The summary is never added to `--json` output.
+The exit code is `1` if any dead link was found, `0` otherwise. This makes linkrot suitable for CI pipelines.
 
-Dead links print in red, alive ones in green. With the default `--color auto`, color is used only when stdout is a terminal; `NO_COLOR` disables it everywhere. JSON output is never colorized.
+## Output
+
+By default, results are printed as text with dead links first. Each dead link shows its final status, the transport error, and the redirect chain if one exists. Alive links show their HTTP status.
+
+```
+https://example.com/gone → DEAD (404)
+https://example.com/moved → DEAD (301) [redirect: 301 https://example.com/old -> https://example.com/deeper]
+https://example.com → 200
+Summary: 1 alive, 2 dead
+```
+
+Dead links are shown in red, alive links in green.
+
+## Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--root` | `.` | Base directory for resolving relative links. |
+| `-n, --threads` | `10` | Number of concurrent HTTP checks. |
+| `-t, --timeout` | `10s` | Per-request HTTP timeout. |
+| `--cache-ttl` | `72h` | How long a successful check result is reused. |
+| `--retry` | `2` | Retries on 502/503/504 and connection errors. |
+| `--user-agent` | `linkrot/0.1.0` | Value of the `User-Agent` header. |
+| `--allow-file-extensions` | all | Only parse files with these extensions (e.g. `.txt,.yaml,.c`). |
+| `--ignore-hosts` | none | Skip URLs whose host matches any of these (comma-separated). |
+| `--json` | off | Output a JSON array instead of text. |
+| `--summary` | on | Append a `Summary: X alive, Y dead` line to text output. |
+| `--color` | `auto` | When to colorize: `auto`, `always`, or `never`. |
+| `-c, --config` | XDG path | Path to a YAML config file. |
+
+### Color
+
+With `--color auto` (the default), colors are used only when stdout is a terminal. Set the `NO_COLOR` environment variable to disable colors everywhere. JSON output is never colorized.
+
+### Summary
+
+Text output ends with a summary line (`Summary: X alive, Y dead`). Disable it with `--summary=false` or `summary: false` in the config file. The `--json` output never includes the summary.
 
 ## Shell completions
 
-Tab completion for commands and flags is built in via the `completion` command:
+Tab completion for commands and flags is built in via the `completion` command.
 
-**bash**
+**Bash**
 
 ```bash
 source <(linkrot completion bash)
@@ -53,7 +95,7 @@ To load it in every shell, add that line to `~/.bashrc`, or install the script:
 linkrot completion bash > ~/.local/share/bash-completion/completions/linkrot
 ```
 
-**zsh**
+**Zsh**
 
 ```bash
 source <(linkrot completion zsh)
@@ -61,7 +103,7 @@ source <(linkrot completion zsh)
 linkrot completion zsh > "${fpath[1]}/_linkrot"
 ```
 
-**fish**
+**Fish**
 
 ```fish
 linkrot completion fish | source
@@ -69,28 +111,11 @@ linkrot completion fish | source
 linkrot completion fish > ~/.config/fish/completions/linkrot.fish
 ```
 
-**powershell**
+**PowerShell**
 
 ```powershell
 linkrot completion powershell | Out-String | Invoke-Expression
 ```
-
-## Flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `--root` | `.` | Base directory for resolving relative links |
-| `-n, --threads` | `10` | Concurrent HTTP checks |
-| `-t, --timeout` | `10s` | Per-request timeout |
-| `--cache-ttl` | `72h` (259200s) | How long a check result is reused |
-| `--retry` | `2` | Retries on 502/503/504 (and connection errors) |
-| `--user-agent` | `linkrot/0.1.0` | User-Agent header |
-| `--allow-file-extensions` | all | Only parse files with these extensions (e.g. `.txt,.yaml,.c`) |
-| `--ignore-hosts` | none | Skip URLs with these hosts (comma-separated) |
-| `--json` | off | Output a JSON array instead of text |
-| `--summary` | on | Append a `Summary: X alive, Y dead` line to text output |
-| `--color` | `auto` | When to colorize: `auto`, `always`, or `never` |
-| `-c, --config` | XDG path | Path to a YAML config file |
 
 ## Config file
 
@@ -110,28 +135,39 @@ summary: true
 color: auto
 ```
 
-## Output
+## JSON output
 
-Text (default): dead links first, each with its final status, transport error, and redirect chain:
+When `--json` is set, results are emitted as a JSON array. Each entry includes:
 
-```
-https://example.com/gone → DEAD (404)
-https://example.com/moved → DEAD (301) [redirect: 301 https://example.com/old -> https://example.com/deeper]
-https://example.com → 200
-Summary: 1 alive, 2 dead
-```
-
-`--json`: the same results as a JSON array with `url`, `status`, `alive`, `redirect_chain`, `error`, and `source_file`.
+- `url` — the URL that was checked.
+- `status` — the final HTTP status code, or `0` if the request failed.
+- `alive` — whether the URL was reachable.
+- `redirect_chain` — the sequence of redirects followed, if any.
+- `error` — the transport error message, if any.
+- `source_file` — the file the URL was extracted from.
 
 ## Development
 
-This project uses [just](https://github.com/casey/just):
+This project uses [just](https://github.com/casey/just) for common tasks:
 
 ```bash
 just build       # build the binary
 just test        # run tests
 just lint        # vet + gofmt check
 just self-check  # run linkrot against this README
+```
+
+**just** recipes:
+
+```bash
+just build       # build the binary
+just test        # run tests
+just test-race   # run tests with the race detector
+just lint        # golangci-lint + format check
+just vet         # go vet
+just self-check  # run linkrot against this README
+just completions shell=bash   # print completion script for a shell
+just clean       # remove built artifacts
 ```
 
 Or without just:
@@ -142,6 +178,9 @@ go test -race ./...  # with the race detector
 go build ./cmd/linkrot
 ```
 
-## Out of scope
+## Design notes
 
-By design there is no recursive site crawling (no `--full-site-check`, no robots.txt handling): the tool checks the URLs found in the files you give it.
+linkrot checks the URLs found in the files you give it. It does **not** crawl a site recursively and does not read `robots.txt`. There is no `--full-site-check`; pass the files you want checked explicitly.
+
+The tool retries on transient failures (502/503/504 and connection errors), and successful results are cached for the configured TTL. Failed results are intentionally not cached, so transient failures are retried on the next run.
+
