@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
+	term "github.com/mattn/go-isatty"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -25,12 +27,16 @@ type CheckConfig struct {
 	IgnoreHosts         []string      `yaml:"ignore-hosts"`
 	JSONOutput          bool          `yaml:"json"`
 	Summary             *bool         `yaml:"summary"`
+	Color               string        `yaml:"color"`
 	ConfigFile          string        `yaml:"-"`
 	Files               []string      `yaml:"-"`
 }
 
 // summaryFlag backs --summary; loadConfigFile folds it into checkConfig.
 var summaryFlag bool
+
+// colorFlag backs --color, same folding as summaryFlag.
+var colorFlag string
 
 var checkConfig = CheckConfig{
 	Threads:   10,
@@ -39,6 +45,7 @@ var checkConfig = CheckConfig{
 	Retry:     2,
 	UserAgent: "linkrot/0.1.0",
 	Summary:   boolPtr(true),
+	Color:     "auto",
 }
 
 var checkCmd = &cobra.Command{
@@ -64,6 +71,7 @@ func init() {
 	checkCmd.Flags().StringSliceVar(&checkConfig.IgnoreHosts, "ignore-hosts", nil, "skip URLs whose host is in this list (comma-separated)")
 	checkCmd.Flags().BoolVar(&checkConfig.JSONOutput, "json", false, "output as JSON array")
 	checkCmd.Flags().BoolVar(&summaryFlag, "summary", true, "append a summary line (X alive, Y dead) to text output")
+	checkCmd.Flags().StringVar(&colorFlag, "color", "auto", "when to colorize output: auto, always, never")
 	checkCmd.Flags().StringVarP(&checkConfig.ConfigFile, "config", "c", "", "path to YAML config file (default: XDG config dir)")
 	rootCmd.AddCommand(checkCmd)
 }
@@ -87,6 +95,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	report.PrintResults(results, report.Options{
 		JSON:    checkConfig.JSONOutput,
 		Summary: summaryEnabled(),
+		Color:   colorEnabled(),
 	})
 
 	for _, r := range results {
@@ -101,6 +110,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 // Anything set explicitly on the command line wins.
 func loadConfigFile(cmd *cobra.Command) error {
 	checkConfig.Summary = &summaryFlag
+	checkConfig.Color = colorFlag
 
 	cfgPath := checkConfig.ConfigFile
 	if cfgPath == "" {
@@ -158,12 +168,20 @@ func loadConfigFile(cmd *cobra.Command) error {
 	if !changed("summary") && fileCfg.Summary != nil {
 		checkConfig.Summary = fileCfg.Summary
 	}
+	if !changed("color") && fileCfg.Color != "" {
+		checkConfig.Color = fileCfg.Color
+	}
 
 	return nil
 }
 
 func summaryEnabled() bool {
 	return checkConfig.Summary == nil || *checkConfig.Summary
+}
+
+// colorEnabled resolves the color mode against the terminal.
+func colorEnabled() bool {
+	return report.ShouldColorize(checkConfig.Color, term.IsTerminal(os.Stdout.Fd()), os.Getenv("NO_COLOR") != "")
 }
 
 func boolPtr(b bool) *bool {

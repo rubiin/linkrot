@@ -10,6 +10,37 @@ import (
 	"linkrot/internal/model"
 )
 
+func TestColorize(t *testing.T) {
+	if got := colorize("x", ansiRed, true); got != "\x1b[31mx\x1b[0m" {
+		t.Errorf("colorize enabled: got %q", got)
+	}
+	if got := colorize("x", ansiRed, false); got != "x" {
+		t.Errorf("colorize disabled: got %q", got)
+	}
+}
+
+func TestShouldColorize(t *testing.T) {
+	tests := []struct {
+		mode    string
+		isTTY   bool
+		noColor bool
+		want    bool
+	}{
+		{"never", true, false, false},
+		{"always", false, false, true},
+		{"always", false, true, false}, // NO_COLOR beats even --color=always
+		{"auto", true, false, true},
+		{"auto", false, false, false},
+		{"auto", true, true, false},
+		{"bogus", true, false, false},
+	}
+	for _, tt := range tests {
+		if got := ShouldColorize(tt.mode, tt.isTTY, tt.noColor); got != tt.want {
+			t.Errorf("shouldColorize(%q, %v, %v) = %v, want %v", tt.mode, tt.isTTY, tt.noColor, got, tt.want)
+		}
+	}
+}
+
 // captureStdout runs fn while capturing os.Stdout, returning the output.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
@@ -30,6 +61,23 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatal(err)
 	}
 	return string(out)
+}
+
+func TestPrintTextColor(t *testing.T) {
+	results := []model.LinkCheck{
+		{URL: "https://example.com/ok", Status: 200, Alive: true, SourceFile: "test.html"},
+		{URL: "https://example.com/dead", Status: 404, Alive: false, SourceFile: "test.html"},
+	}
+
+	colored := captureStdout(t, func() { PrintResults(results, Options{Color: true}) })
+	if !strings.Contains(colored, "\x1b[31m") || !strings.Contains(colored, "\x1b[32m") {
+		t.Errorf("expected red and green escapes in colored output, got: %q", colored)
+	}
+
+	plain := captureStdout(t, func() { PrintResults(results, Options{}) })
+	if strings.Contains(plain, "\x1b[") {
+		t.Errorf("expected no escapes in plain output, got: %q", plain)
+	}
 }
 
 func TestPrintText(t *testing.T) {

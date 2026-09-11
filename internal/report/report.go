@@ -5,14 +5,22 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"linkrot/internal/model"
 )
 
+const (
+	ansiRed   = "\x1b[31m"
+	ansiGreen = "\x1b[32m"
+	ansiReset = "\x1b[0m"
+)
+
 type Options struct {
 	JSON    bool
 	Summary bool
+	Color   bool
 }
 
 func PrintResults(results []model.LinkCheck, opts Options) {
@@ -20,10 +28,30 @@ func PrintResults(results []model.LinkCheck, opts Options) {
 		printJSON(results)
 		return
 	}
-	printText(results, opts.Summary)
+	printText(results, opts)
 }
 
-func printText(results []model.LinkCheck, summary bool) {
+func colorize(s, code string, enabled bool) string {
+	if !enabled {
+		return s
+	}
+	return code + s + ansiReset
+}
+
+// ShouldColorize resolves the --color mode against the environment:
+// never wins, NO_COLOR wins over everything (even always), auto defers to TTY.
+func ShouldColorize(mode string, isTTY, noColor bool) bool {
+	switch mode {
+	case "always":
+		return !noColor
+	case "auto":
+		return isTTY && !noColor
+	default: // "never" and anything unrecognized
+		return false
+	}
+}
+
+func printText(results []model.LinkCheck, opts Options) {
 	if len(results) == 0 {
 		fmt.Println("No links found.")
 		return
@@ -31,16 +59,15 @@ func printText(results []model.LinkCheck, summary bool) {
 
 	for _, r := range sortedDeadFirst(results) {
 		if r.Alive {
-			fmt.Printf("%s → %d\n", r.URL, r.Status)
+			fmt.Printf("%s → %s\n", r.URL, colorize(strconv.Itoa(r.Status), ansiGreen, opts.Color))
 			continue
 		}
 
-		var msg string
-		if r.Status == 0 {
-			msg = fmt.Sprintf("%s → DEAD (err)", r.URL)
-		} else {
-			msg = fmt.Sprintf("%s → DEAD (%d)", r.URL, r.Status)
+		marker := "→ DEAD (err)"
+		if r.Status != 0 {
+			marker = fmt.Sprintf("→ DEAD (%d)", r.Status)
 		}
+		msg := r.URL + " " + colorize(marker, ansiRed, opts.Color)
 		if r.Err != "" {
 			msg += fmt.Sprintf(" %s", r.Err)
 		}
@@ -54,14 +81,16 @@ func printText(results []model.LinkCheck, summary bool) {
 		fmt.Println(msg)
 	}
 
-	if summary {
+	if opts.Summary {
 		alive := 0
 		for _, r := range results {
 			if r.Alive {
 				alive++
 			}
 		}
-		fmt.Printf("Summary: %d alive, %d dead\n", alive, len(results)-alive)
+		fmt.Printf("Summary: %s, %s\n",
+			colorize(fmt.Sprintf("%d alive", alive), ansiGreen, opts.Color),
+			colorize(fmt.Sprintf("%d dead", len(results)-alive), ansiRed, opts.Color))
 	}
 }
 

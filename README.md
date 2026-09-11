@@ -34,6 +34,8 @@ Exit code is `1` if any dead link was found, `0` otherwise — so it drops strai
 
 Text output ends with a summary line (`Summary: X alive, Y dead`); disable it with `--summary=false` or `summary: false` in the config file. The summary is never added to `--json` output.
 
+Dead links print in red, alive ones in green. With the default `--color auto`, color is used only when stdout is a terminal; `NO_COLOR` disables it everywhere. JSON output is never colorized.
+
 ## Shell completions
 
 Tab completion for commands and flags is built in via the `completion` command:
@@ -86,6 +88,7 @@ linkrot completion powershell | Out-String | Invoke-Expression
 | `--ignore-hosts` | none | Skip URLs with these hosts (comma-separated) |
 | `--json` | off | Output a JSON array instead of text |
 | `--summary` | on | Append a `Summary: X alive, Y dead` line to text output |
+| `--color` | `auto` | When to colorize: `auto`, `always`, or `never` |
 | `-c, --config` | XDG path | Path to a YAML config file |
 
 ## Config file
@@ -103,6 +106,7 @@ allow-file-extensions: [".md", ".html"]
 ignore-hosts: ["www.example.com"]
 json: false
 summary: true
+color: auto
 ```
 
 ## Output

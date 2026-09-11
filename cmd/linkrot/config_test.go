@@ -24,8 +24,50 @@ func newTestFlagSet() *pflag.FlagSet {
 	fs.StringSlice("ignore-hosts", nil, "")
 	fs.Bool("json", false, "")
 	fs.Bool("summary", true, "")
+	fs.String("color", "auto", "")
 	fs.String("config", "", "")
 	return fs
+}
+
+func TestColorConfigPrecedence(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("color: always\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Config value applies when the flag is untouched.
+	checkConfig = CheckConfig{Summary: boolPtr(true), Color: "auto"}
+	checkConfig.ConfigFile = configFile
+	cmd := &cobra.Command{Use: "check"}
+	cmd.Flags().AddFlagSet(newTestFlagSet())
+	if err := loadConfigFile(cmd); err != nil {
+		t.Fatal(err)
+	}
+	if checkConfig.Color != "always" {
+		t.Errorf("expected color always from config, got %q", checkConfig.Color)
+	}
+
+	// An explicit flag wins: --color binds to colorFlag, which
+	// loadConfigFile folds into checkConfig before consulting the file.
+	checkConfig = CheckConfig{Summary: boolPtr(true), Color: "auto"}
+	checkConfig.ConfigFile = configFile
+	cmd = &cobra.Command{Use: "check"}
+	fs := newTestFlagSet()
+	cmd.Flags().AddFlagSet(fs)
+	if err := fs.Set("color", "never"); err != nil {
+		t.Fatal(err)
+	}
+	oldColorFlag := colorFlag
+	colorFlag = "never"
+	defer func() { colorFlag = oldColorFlag }()
+	if err := loadConfigFile(cmd); err != nil {
+		t.Fatal(err)
+	}
+	if checkConfig.Color != "never" {
+		t.Errorf("expected color never (flag override), got %q", checkConfig.Color)
+	}
 }
 
 func TestSummaryConfigPrecedence(t *testing.T) {
@@ -109,6 +151,8 @@ json: true
 		CacheTTL:  259200 * time.Second,
 		Retry:     2,
 		UserAgent: "linkrot/0.1.0",
+		Summary:   boolPtr(true),
+		Color:     "auto",
 	}
 	checkConfig.ConfigFile = configFile
 
@@ -166,6 +210,8 @@ json: true
 		Retry:      2,
 		UserAgent:  "linkrot/0.1.0",
 		JSONOutput: false,
+		Summary:    boolPtr(true),
+		Color:      "auto",
 	}
 	checkConfig.ConfigFile = configFile
 
