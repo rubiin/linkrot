@@ -10,16 +10,11 @@ import (
 	"linkrot/internal/model"
 )
 
-// Options controls report output.
 type Options struct {
-	// JSON renders results as a JSON array instead of text lines.
-	JSON bool
-	// Summary appends a "Summary: X alive, Y dead" line to text output.
+	JSON    bool
 	Summary bool
 }
 
-// PrintResults prints the check results to stdout. Dead links are reported
-// first. With opts.JSON, results are printed as a JSON array instead.
 func PrintResults(results []model.LinkCheck, opts Options) {
 	if opts.JSON {
 		printJSON(results)
@@ -34,9 +29,7 @@ func printText(results []model.LinkCheck, summary bool) {
 		return
 	}
 
-	sorted := sortedDeadFirst(results)
-
-	for _, r := range sorted {
+	for _, r := range sortedDeadFirst(results) {
 		if r.Alive {
 			fmt.Printf("%s → %d\n", r.URL, r.Status)
 			continue
@@ -109,7 +102,6 @@ func printJSON(results []model.LinkCheck) {
 	fmt.Println(string(data))
 }
 
-// sortedDeadFirst returns a copy of results sorted dead links first, then by URL.
 func sortedDeadFirst(results []model.LinkCheck) []model.LinkCheck {
 	sorted := make([]model.LinkCheck, len(results))
 	copy(sorted, results)

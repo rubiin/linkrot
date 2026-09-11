@@ -29,18 +29,16 @@ type CheckConfig struct {
 	Files               []string      `yaml:"-"`
 }
 
-// summaryFlag backs the --summary flag. Its value is transferred into
-// checkConfig.Summary after flag parsing so config precedence can treat it
-// like every other flag (see loadConfigFile).
+// summaryFlag backs --summary; loadConfigFile folds it into checkConfig.
 var summaryFlag bool
 
 var checkConfig = CheckConfig{
 	Threads:   10,
 	Timeout:   10 * time.Second,
-	CacheTTL:  259200 * time.Second, // 3 days
+	CacheTTL:  259200 * time.Second,
 	Retry:     2,
 	UserAgent: "linkrot/0.1.0",
-	Summary:   boolPtr(true), // summary line on by default in text output
+	Summary:   boolPtr(true),
 }
 
 var checkCmd = &cobra.Command{
@@ -99,13 +97,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// loadConfigFile reads the YAML config file and applies values to checkConfig.
-// Flag values take precedence over config file values: a config value is only
-// applied when the corresponding flag was not explicitly set on the command
-// line (checked via cobra's Flags().Changed).
+// loadConfigFile applies config file values on top of the parsed flags.
+// Anything set explicitly on the command line wins.
 func loadConfigFile(cmd *cobra.Command) error {
-	// Baseline: the parsed --summary flag value (default true). Config may
-	// override it below when the flag was not explicitly set.
 	checkConfig.Summary = &summaryFlag
 
 	cfgPath := checkConfig.ConfigFile
@@ -130,7 +124,6 @@ func loadConfigFile(cmd *cobra.Command) error {
 	if cmd != nil {
 		flags = cmd.Flags()
 	}
-
 	changed := func(name string) bool {
 		return flags != nil && flags.Changed(name)
 	}
@@ -169,14 +162,8 @@ func loadConfigFile(cmd *cobra.Command) error {
 	return nil
 }
 
-// summaryEnabled resolves the summary setting: the --summary flag wins when
-// explicitly set; otherwise the config file's summary key; otherwise the
-// built-in default (on).
 func summaryEnabled() bool {
-	if checkConfig.Summary != nil {
-		return *checkConfig.Summary
-	}
-	return true
+	return checkConfig.Summary == nil || *checkConfig.Summary
 }
 
 func boolPtr(b bool) *bool {

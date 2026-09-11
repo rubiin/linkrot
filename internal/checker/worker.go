@@ -13,7 +13,6 @@ import (
 	"linkrot/internal/model"
 )
 
-// CheckConfig holds the configuration for a check run.
 type CheckConfig struct {
 	Root                string
 	Threads             int
@@ -25,20 +24,15 @@ type CheckConfig struct {
 	IgnoreHosts         []string
 }
 
-// CheckAll reads links from the given files, deduplicates them, filters out
-// ignored hosts, checks each remaining URL with a worker pool of cfg.Threads
-// goroutines, and returns the results sorted dead-first.
+// CheckAll extracts the URLs from files, checks each one with a worker pool,
+// and returns the results sorted dead links first.
 func CheckAll(ctx context.Context, cfg CheckConfig, files []string) []model.LinkCheck {
 	root, err := filepath.Abs(cfg.Root)
 	if err != nil {
 		root = cfg.Root
 	}
-
-	// Base URL for resolving relative links found in files. A local root is
-	// used as a file:// base; only http(s) URLs survive extraction.
 	baseURL := "file://" + root
 
-	// Collect URLs per file, deduplicating across files.
 	urlSources := make(map[string][]string)
 	var allURLs []string
 
@@ -65,7 +59,6 @@ func CheckAll(ctx context.Context, cfg CheckConfig, files []string) []model.Link
 		}
 	}
 
-	// Filter out ignored hosts.
 	var urlsToCheck []string
 	for _, u := range allURLs {
 		if !hostIsIgnored(u, cfg.IgnoreHosts) {

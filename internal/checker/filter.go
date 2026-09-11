@@ -6,9 +6,8 @@ import (
 	"strings"
 )
 
-// allowedFileExtension reports whether the file's extension is in the allowed
-// list. Entries may be given with or without a leading dot. An empty list
-// allows all files.
+// allowedFileExtension treats an empty list as "allow everything" and
+// tolerates a leading dot on either side.
 func allowedFileExtension(filename string, allowed []string) bool {
 	if len(allowed) == 0 {
 		return true
@@ -22,8 +21,6 @@ func allowedFileExtension(filename string, allowed []string) bool {
 	return false
 }
 
-// hostIsIgnored reports whether the URL's host matches one of the ignored
-// hosts (case-insensitive, exact host match).
 func hostIsIgnored(rawURL string, ignored []string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {

@@ -10,10 +10,8 @@ import (
 	"linkrot/internal/model"
 )
 
-// maxRedirects is the maximum number of redirect hops to follow.
 const maxRedirects = 10
 
-// CheckResult is the result of checking a single URL.
 type CheckResult struct {
 	URL           string
 	Status        int
@@ -22,7 +20,6 @@ type CheckResult struct {
 	Err           string
 }
 
-// Cache is an in-memory cache of check results keyed by URL.
 type Cache struct {
 	mu      sync.Mutex
 	entries map[string]cacheEntry
@@ -33,12 +30,10 @@ type cacheEntry struct {
 	expires time.Time
 }
 
-// NewCache creates an empty check-result cache.
 func NewCache() *Cache {
 	return &Cache{entries: make(map[string]cacheEntry)}
 }
 
-// get returns the cached result for url if present and not expired.
 func (c *Cache) get(rawURL string) (CheckResult, bool) {
 	if c == nil {
 		return CheckResult{}, false
@@ -52,8 +47,7 @@ func (c *Cache) get(rawURL string) (CheckResult, bool) {
 	return entry.result, true
 }
 
-// put stores the result for url until the TTL elapses. Results with errors
-// are not cached so transient failures are retried on the next run.
+// put skips failed results so transient failures get retried on the next run.
 func (c *Cache) put(rawURL string, result CheckResult, ttl time.Duration) {
 	if c == nil || ttl <= 0 || result.Err != "" {
 		return
@@ -66,10 +60,8 @@ func (c *Cache) put(rawURL string, result CheckResult, ttl time.Duration) {
 	}
 }
 
-// CheckURL checks a single URL by issuing an HTTP GET, following redirects up
-// to maxRedirects, retrying on 502/503/504 up to retryCount times with
-// linear backoff. When cache is non-nil, a fresh cached result is returned
-// and successful results are stored with the given TTL.
+// CheckURL fetches rawURL, following redirects up to maxRedirects and retrying
+// on 502/503/504 or transport errors. Results are cached for cacheTTL.
 func CheckURL(ctx context.Context, rawURL string, timeout time.Duration, retryCount int, userAgent string, cache *Cache, cacheTTL time.Duration) CheckResult {
 	if result, ok := cache.get(rawURL); ok {
 		return result
@@ -82,7 +74,6 @@ func CheckURL(ctx context.Context, rawURL string, timeout time.Duration, retryCo
 		select {
 		case <-ctx.Done():
 			result.Err = ctx.Err().Error()
-			cache.put(rawURL, result, 0)
 			return result
 		case <-time.After(backoff):
 			result = checkOnce(ctx, rawURL, timeout, userAgent)
@@ -93,8 +84,6 @@ func CheckURL(ctx context.Context, rawURL string, timeout time.Duration, retryCo
 	return result
 }
 
-// isRetryable reports whether a failed check should be retried: a 502, 503,
-// or 504 response, or a transport error (result.Err != "" with no status).
 func isRetryable(result CheckResult) bool {
 	if result.Err != "" && result.Status == 0 {
 		return true
@@ -104,16 +93,13 @@ func isRetryable(result CheckResult) bool {
 		result.Status == http.StatusGatewayTimeout
 }
 
-// checkOnce performs a single check attempt: an HTTP GET following redirects,
-// recording each hop in the redirect chain.
+// checkOnce issues one GET, walking redirects itself so every hop lands in the chain.
 func checkOnce(ctx context.Context, rawURL string, timeout time.Duration, userAgent string) CheckResult {
 	chain := []model.RedirectStep{}
 	currentURL := rawURL
 
 	client := &http.Client{
 		Timeout: timeout,
-		// Do not let the client follow redirects: the loop below follows them
-		// manually so each hop can be recorded in the chain.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -140,21 +126,16 @@ func checkOnce(ctx context.Context, rawURL string, timeout time.Duration, userAg
 		resp.Body.Close()
 
 		if resp.StatusCode >= 300 && resp.StatusCode < 400 && hop < maxRedirects {
-			location := resp.Header.Get("Location")
-			if location != "" {
-				next, err := resp.Location()
-				if err == nil {
-					chain = append(chain, model.RedirectStep{
-						URL:    currentURL,
-						Status: resp.StatusCode,
-					})
-					currentURL = next.String()
-					continue
-				}
+			if next, err := resp.Location(); err == nil {
+				chain = append(chain, model.RedirectStep{
+					URL:    currentURL,
+					Status: resp.StatusCode,
+				})
+				currentURL = next.String()
+				continue
 			}
 		}
 
-		// Not a redirect (or redirect could not be followed): this is final.
 		return CheckResult{
 			URL:           rawURL,
 			Status:        resp.StatusCode,
