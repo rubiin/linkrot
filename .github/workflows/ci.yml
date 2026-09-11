@@ -17,10 +17,13 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v8
+      - name: Install GolangCI-Lint
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+
+      - name: Lint
+        run: golangci-lint run
 
       - name: Test
         run: go test ./...
