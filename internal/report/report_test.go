@@ -38,7 +38,7 @@ func TestPrintText(t *testing.T) {
 		{URL: "https://example.com/dead", Status: 404, Alive: false, SourceFile: "test.html"},
 	}
 
-	output := captureStdout(t, func() { PrintResults(results, false) })
+	output := captureStdout(t, func() { PrintResults(results, Options{Summary: false}) })
 
 	if !strings.Contains(output, "https://example.com/dead") {
 		t.Errorf("expected dead link in output, got: %s", output)
@@ -53,8 +53,49 @@ func TestPrintText(t *testing.T) {
 	}
 }
 
+func TestPrintTextWithSummary(t *testing.T) {
+	results := []model.LinkCheck{
+		{URL: "https://example.com/ok", Status: 200, Alive: true, SourceFile: "test.html"},
+		{URL: "https://example.com/dead", Status: 404, Alive: false, SourceFile: "test.html"},
+		{URL: "https://example.com/also-dead", Status: 0, Alive: false, Err: "connection refused", SourceFile: "test.html"},
+	}
+
+	output := captureStdout(t, func() { PrintResults(results, Options{Summary: true}) })
+
+	if !strings.Contains(output, "Summary: 1 alive, 2 dead") {
+		t.Errorf("expected summary line 'Summary: 1 alive, 2 dead', got: %s", output)
+	}
+	// Summary must be the last line
+	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
+	if !strings.HasPrefix(lines[len(lines)-1], "Summary:") {
+		t.Errorf("expected summary as last line, got: %q", lines[len(lines)-1])
+	}
+}
+
+func TestPrintTextSummaryDisabled(t *testing.T) {
+	results := []model.LinkCheck{
+		{URL: "https://example.com/ok", Status: 200, Alive: true, SourceFile: "test.html"},
+	}
+
+	output := captureStdout(t, func() { PrintResults(results, Options{Summary: false}) })
+
+	if strings.Contains(output, "Summary:") {
+		t.Errorf("expected no summary line, got: %s", output)
+	}
+}
+
+func TestPrintTextSummaryWithNoLinks(t *testing.T) {
+	output := captureStdout(t, func() { PrintResults(nil, Options{Summary: true}) })
+	if !strings.Contains(output, "No links found") {
+		t.Errorf("expected 'No links found' message, got: %s", output)
+	}
+	if strings.Contains(output, "Summary:") {
+		t.Errorf("expected no summary line when there are no links, got: %s", output)
+	}
+}
+
 func TestPrintTextEmpty(t *testing.T) {
-	output := captureStdout(t, func() { PrintResults(nil, false) })
+	output := captureStdout(t, func() { PrintResults(nil, Options{}) })
 	if !strings.Contains(output, "No links found") {
 		t.Errorf("expected 'No links found' message, got: %s", output)
 	}
@@ -65,7 +106,7 @@ func TestPrintTextWithError(t *testing.T) {
 		{URL: "https://unreachable.test/x", Status: 0, Alive: false, Err: "connection refused", SourceFile: "a.html"},
 	}
 
-	output := captureStdout(t, func() { PrintResults(results, false) })
+	output := captureStdout(t, func() { PrintResults(results, Options{}) })
 
 	if !strings.Contains(output, "connection refused") {
 		t.Errorf("expected error text in output, got: %s", output)
@@ -81,7 +122,7 @@ func TestPrintTextWithRedirectChain(t *testing.T) {
 			}},
 	}
 
-	output := captureStdout(t, func() { PrintResults(results, false) })
+	output := captureStdout(t, func() { PrintResults(results, Options{}) })
 
 	if !strings.Contains(output, "redirect") {
 		t.Errorf("expected redirect info in output, got: %s", output)
@@ -97,7 +138,7 @@ func TestPrintJSON(t *testing.T) {
 		{URL: "https://example.com/dead", Status: 404, Alive: false, SourceFile: "test.html"},
 	}
 
-	output := captureStdout(t, func() { PrintResults(results, true) })
+	output := captureStdout(t, func() { PrintResults(results, Options{JSON: true}) })
 
 	var parsed []map[string]interface{}
 	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
@@ -133,7 +174,7 @@ func TestPrintJSONWithRedirectChain(t *testing.T) {
 			}},
 	}
 
-	output := captureStdout(t, func() { PrintResults(results, true) })
+	output := captureStdout(t, func() { PrintResults(results, Options{JSON: true}) })
 
 	var parsed []struct {
 		URL           string `json:"url"`
