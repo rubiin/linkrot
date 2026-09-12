@@ -1,5 +1,13 @@
 # linkrot
 
+
+![CI](https://github.com/rubiin/linkrot/actions/workflows/ci.yml/badge.svg)
+![AUR version](https://img.shields.io/aur/version/linkrot-bin)
+![Release](https://img.shields.io/github/v/release/rubiin/linkrot)
+
+<img alt="linkrot logo" width="300" alt="logo-Photoroom" src="https://github.com/user-attachments/assets/596e908d-58ae-419c-b0d9-8cfa0bf20ac9" />
+
+
 linkrot is a fast CLI link checker for local files. It reads HTML, Markdown, and plain-text files, extracts every URL, and checks each one over HTTP — concurrently, with retries, caching, and per-host filtering.
 
 - **Concurrency** — check many links in parallel with `-n`.
