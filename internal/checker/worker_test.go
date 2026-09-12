@@ -193,6 +193,119 @@ func TestCheckAllRespectsConcurrency(t *testing.T) {
 	}
 }
 
+func TestCheckAllDirectoryExpansion(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	docDir := filepath.Join(tmpDir, "docs")
+	if err := os.MkdirAll(docDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	htmlFile := filepath.Join(docDir, "page.html")
+	if err := os.WriteFile(htmlFile, []byte(`<a href="http://example.com/a">a</a>`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	txtFile := filepath.Join(docDir, "notes.txt")
+	if err := os.WriteFile(txtFile, []byte("http://example.com/b"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := CheckConfig{
+		Root:      tmpDir,
+		Threads:   1,
+		Timeout:   5 * time.Second,
+		CacheTTL:  0,
+		Retry:     0,
+		UserAgent: "test-agent",
+	}
+
+	results := CheckAll(context.Background(), cfg, []string{docDir})
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results from directory walk, got %d: %v", len(results), results)
+	}
+}
+
+func TestCheckAllIgnoredByGitignore(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	docDir := filepath.Join(tmpDir, "docs")
+	if err := os.MkdirAll(docDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	ignoredFile := filepath.Join(docDir, "ignored.html")
+	if err := os.WriteFile(ignoredFile, []byte(`<a href="http://example.com/ignored">x</a>`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	keptFile := filepath.Join(docDir, "kept.html")
+	if err := os.WriteFile(keptFile, []byte(`<a href="http://example.com/kept">x</a>`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	gitignore := filepath.Join(tmpDir, ".gitignore")
+	if err := os.WriteFile(gitignore, []byte("docs/ignored.html\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := CheckConfig{
+		Root:                tmpDir,
+		Threads:             1,
+		Timeout:             5 * time.Second,
+		CacheTTL:            0,
+		Retry:               0,
+		UserAgent:           "test-agent",
+		IgnoreFiles:         []string{".gitignore"},
+		AllowFileExtensions: []string{"html"},
+	}
+
+	results := CheckAll(context.Background(), cfg, []string{docDir})
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (ignored file skipped), got %d: %v", len(results), results)
+	}
+	if results[0].URL != "http://example.com/kept" {
+		t.Errorf("expected kept URL, got %s", results[0].URL)
+	}
+}
+
+func TestCheckAllDirectoryAndExplicitFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	docDir := filepath.Join(tmpDir, "docs")
+	if err := os.MkdirAll(docDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	dirFile := filepath.Join(docDir, "from-dir.html")
+	if err := os.WriteFile(dirFile, []byte(`<a href="http://example.com/dir">x</a>`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	standalone := filepath.Join(tmpDir, "standalone.html")
+	if err := os.WriteFile(standalone, []byte(`<a href="http://example.com/standalone">x</a>`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := CheckConfig{
+		Root:                tmpDir,
+		Threads:             1,
+		Timeout:             5 * time.Second,
+		CacheTTL:            0,
+		Retry:               0,
+		UserAgent:           "test-agent",
+		AllowFileExtensions: []string{"html"},
+	}
+
+	results := CheckAll(context.Background(), cfg, []string{docDir, standalone})
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d: %v", len(results), results)
+	}
+}
+
 func TestCheckAllMixedAliveDead(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/dead" {

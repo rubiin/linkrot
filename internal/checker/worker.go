@@ -2,6 +2,7 @@ package checker
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,6 +23,26 @@ type CheckConfig struct {
 	UserAgent           string
 	AllowFileExtensions []string
 	IgnoreHosts         []string
+	IgnoreFiles         []string
+}
+
+// fileExists reports whether path exists.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// isDirectory reports whether path is a directory.
+func isDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// isUnder reports whether candidate is under root (or equal to it).
+func isUnder(candidate, root string) bool {
+	candidate = filepath.Clean(candidate) + string(filepath.Separator)
+	root = filepath.Clean(root) + string(filepath.Separator)
+	return strings.HasPrefix(candidate, root)
 }
 
 // CheckAll extracts the URLs from files, checks each one with a worker pool,
@@ -31,16 +52,77 @@ func CheckAll(ctx context.Context, cfg CheckConfig, files []string) []model.Link
 	if err != nil {
 		root = cfg.Root
 	}
+	// Ensure root ends with a separator for clean relative paths.
+	root = root + string(filepath.Separator)
 	baseURL := "file://" + root
+
+	// Build ignore matchers from any configured ignore files.
+	var matchers []*ignoreFileMatcher
+	for _, name := range cfg.IgnoreFiles {
+		if m := readIgnoreFile(root, name); m != nil {
+			matchers = append(matchers, m)
+		}
+	}
+
+	// Determine the set of files to process. Explicit files are used directly;
+	// directories are expanded by walking from root and keeping only files that
+	// live under one of the specified entries.
+	var walkEntries []string
+	for _, entry := range files {
+		abs, err := filepath.Abs(entry)
+		if err != nil {
+			continue
+		}
+		walkEntries = append(walkEntries, abs)
+	}
+
+	var work []string
+	if len(walkEntries) == 0 {
+		// No valid entries after stat; nothing to do.
+		return nil
+	}
+
+	if len(walkEntries) == 1 && fileExists(walkEntries[0]) && !isDirectory(walkEntries[0]) {
+		// Single explicit file: use it directly.
+		work = []string{walkEntries[0]}
+	} else {
+		// Walk from root and collect files under any of the specified entries.
+		visited := make(map[string]bool)
+		walkErr := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.Type().IsRegular() {
+				return nil
+			}
+			rel := strings.TrimPrefix(p, root)
+			rel = slash(rel)
+			if shouldSkip(rel, matchers) {
+				return nil
+			}
+			if !allowedFileExtension(p, cfg.AllowFileExtensions) {
+				return nil
+			}
+			for _, entry := range walkEntries {
+				if isUnder(p, entry) {
+					if !visited[p] {
+						visited[p] = true
+						work = append(work, p)
+					}
+					break
+				}
+			}
+			return nil
+		})
+		if walkErr != nil {
+			return nil
+		}
+	}
 
 	urlSources := make(map[string][]string)
 	var allURLs []string
 
-	for _, file := range files {
-		if !allowedFileExtension(file, cfg.AllowFileExtensions) {
-			continue
-		}
-
+	for _, file := range work {
 		content, err := os.ReadFile(file)
 		if err != nil {
 			continue
