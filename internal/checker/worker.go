@@ -45,6 +45,22 @@ func isUnder(candidate, root string) bool {
 	return strings.HasPrefix(candidate, root)
 }
 
+// fileCount tracks the number of files scanned in the current CheckAll call.
+var fileCount int
+
+// scannedDir tracks whether the input was a directory (or multiple files).
+var scannedDir bool
+
+// FileCount returns the number of files scanned in the most recent CheckAll call.
+func FileCount() int {
+	return fileCount
+}
+
+// ScannedDirectory returns whether the most recent CheckAll call scanned a directory.
+func ScannedDirectory() bool {
+	return scannedDir
+}
+
 // CheckAll extracts the URLs from files, checks each one with a worker pool,
 // and returns the results sorted dead links first.
 func CheckAll(ctx context.Context, cfg CheckConfig, files []string) []model.LinkCheck {
@@ -115,9 +131,13 @@ func CheckAll(ctx context.Context, cfg CheckConfig, files []string) []model.Link
 			return nil
 		})
 		if walkErr != nil {
-			return nil
-		}
+		return nil
 	}
+	}
+	fileCount = len(work)
+	// Consider it a directory scan if we walked (multiple entries or single directory)
+	// or if more than one file was processed.
+	scannedDir = len(walkEntries) > 1 || (len(walkEntries) == 1 && isDirectory(walkEntries[0]))
 
 	urlSources := make(map[string][]string)
 	var allURLs []string

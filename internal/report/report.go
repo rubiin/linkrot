@@ -23,9 +23,11 @@ const (
 )
 
 type Options struct {
-	JSON    bool
-	Summary bool
-	Color   bool
+	JSON      bool
+	Summary   bool
+	Color     bool
+	FileCount int    // number of files scanned
+	ScannedDir bool  // whether input was a directory (show "Found X in Y files" format)
 }
 
 func PrintResults(results []model.LinkCheck, opts Options) {
@@ -64,7 +66,11 @@ func printText(results []model.LinkCheck, opts Options) {
 
 	if opts.Summary {
 		fmt.Println()
-		fmt.Println(colorize("Links found: "+strconv.Itoa(len(results)), ansiGreen, opts.Color))
+		if opts.ScannedDir && opts.FileCount > 0 {
+			fmt.Println(colorize(fmt.Sprintf("Found %d link(s) in %d file(s)", len(results), opts.FileCount), ansiGreen, opts.Color))
+		} else {
+			fmt.Println(colorize("Links found: "+strconv.Itoa(len(results)), ansiGreen, opts.Color))
+		}
 		fmt.Println()
 	}
 

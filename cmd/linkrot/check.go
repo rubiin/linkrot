@@ -104,15 +104,19 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	results := checker.CheckAll(cmd.Context(), cfg, checkConfig.Files)
+	fileCount := checker.FileCount()
+	scannedDir := checker.ScannedDirectory()
 
 	if sp != nil {
 		sp.Stop()
 	}
 
 	report.PrintResults(results, report.Options{
-		JSON:    checkConfig.JSONOutput,
-		Summary: summaryEnabled(),
-		Color:   colorEnabled(),
+		JSON:      checkConfig.JSONOutput,
+		Summary:   summaryEnabled(),
+		Color:     colorEnabled(),
+		FileCount: fileCount,
+		ScannedDir: scannedDir,
 	})
 
 	for _, r := range results {
