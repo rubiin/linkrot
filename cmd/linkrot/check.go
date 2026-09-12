@@ -26,6 +26,7 @@ type CheckConfig struct {
 	UserAgent           string        `yaml:"user-agent"`
 	AllowFileExtensions []string      `yaml:"allow-file-extensions"`
 	IgnoreHosts         []string      `yaml:"ignore-hosts"`
+	IgnoreFiles         []string      `yaml:"ignore-files"`
 	JSONOutput          bool          `yaml:"json"`
 	Summary             *bool         `yaml:"summary"`
 	Color               string        `yaml:"color"`
@@ -70,6 +71,7 @@ func init() {
 	checkCmd.Flags().StringVar(&checkConfig.UserAgent, "user-agent", "linkrot/0.1.0", "User-Agent header")
 	checkCmd.Flags().StringSliceVar(&checkConfig.AllowFileExtensions, "allow-file-extensions", nil, "only parse files with these extensions (comma-separated)")
 	checkCmd.Flags().StringSliceVar(&checkConfig.IgnoreHosts, "ignore-hosts", nil, "skip URLs whose host is in this list (comma-separated)")
+	checkCmd.Flags().StringSliceVar(&checkConfig.IgnoreFiles, "ignore-files", nil, "ignore patterns from these files (e.g. .gitignore,.linkrotignore); missing files are silently skipped")
 	checkCmd.Flags().BoolVar(&checkConfig.JSONOutput, "json", false, "output as JSON array")
 	checkCmd.Flags().BoolVar(&summaryFlag, "summary", true, "append a summary line (X alive, Y dead) to text output")
 	checkCmd.Flags().StringVar(&colorFlag, "color", "auto", "when to colorize output: auto, always, never")
@@ -89,6 +91,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		UserAgent:           checkConfig.UserAgent,
 		AllowFileExtensions: checkConfig.AllowFileExtensions,
 		IgnoreHosts:         checkConfig.IgnoreHosts,
+		IgnoreFiles:         checkConfig.IgnoreFiles,
 	}
 
 	useSpinner := !checkConfig.JSONOutput && colorEnabled()
@@ -175,6 +178,9 @@ func loadConfigFile(cmd *cobra.Command) error {
 	}
 	if !changed("ignore-hosts") && len(fileCfg.IgnoreHosts) > 0 {
 		checkConfig.IgnoreHosts = fileCfg.IgnoreHosts
+	}
+	if !changed("ignore-files") && len(fileCfg.IgnoreFiles) > 0 {
+		checkConfig.IgnoreFiles = fileCfg.IgnoreFiles
 	}
 	if !changed("json") && fileCfg.JSONOutput {
 		checkConfig.JSONOutput = true
