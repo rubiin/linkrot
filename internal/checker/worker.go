@@ -131,8 +131,8 @@ func CheckAll(ctx context.Context, cfg CheckConfig, files []string) []model.Link
 			return nil
 		})
 		if walkErr != nil {
-		return nil
-	}
+			return nil
+		}
 	}
 	fileCount = len(work)
 	// Consider it a directory scan if we walked (multiple entries or single directory)

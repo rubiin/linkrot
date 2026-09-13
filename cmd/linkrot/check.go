@@ -112,10 +112,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	report.PrintResults(results, report.Options{
-		JSON:      checkConfig.JSONOutput,
-		Summary:   summaryEnabled(),
-		Color:     colorEnabled(),
-		FileCount: fileCount,
+		JSON:       checkConfig.JSONOutput,
+		Summary:    summaryEnabled(),
+		Color:      colorEnabled(),
+		FileCount:  fileCount,
 		ScannedDir: scannedDir,
 	})
 

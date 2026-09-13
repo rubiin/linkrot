@@ -23,11 +23,11 @@ const (
 )
 
 type Options struct {
-	JSON      bool
-	Summary   bool
-	Color     bool
-	FileCount int    // number of files scanned
-	ScannedDir bool  // whether input was a directory (show "Found X in Y files" format)
+	JSON       bool
+	Summary    bool
+	Color      bool
+	FileCount  int  // number of files scanned
+	ScannedDir bool // whether input was a directory (show "Found X in Y files" format)
 }
 
 func PrintResults(results []model.LinkCheck, opts Options) {
