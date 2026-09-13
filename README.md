@@ -25,6 +25,18 @@ go install linkrot/cmd/linkrot@latest
 
 This installs `linkrot` to `$GOPATH/bin` (or `$HOME/go/bin`). Make sure that directory is on your `PATH`.
 
+**Arch Linux (AUR)**
+
+```bash
+yay -S linkrot-bin
+```
+
+Or with any other AUR helper:
+
+```bash
+paru -S linkrot-bin
+```
+
 ## Quick start
 
 Check a single file:
