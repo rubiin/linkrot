@@ -204,3 +204,9 @@ linkrot checks the URLs found in the files you give it. It does **not** crawl a 
 
 The tool retries on transient failures (502/503/504 and connection errors), and successful results are cached for the configured TTL. Failed results are intentionally not cached, so transient failures are retried on the next run.
 
+## License
+
+[GPL-3.0](./LICENSE)
+
+Made with ❤️ for opensource.
+
