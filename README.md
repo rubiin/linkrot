@@ -1,9 +1,10 @@
 # linkrot
 
 
-![CI](https://github.com/rubiin/linkrot/actions/workflows/ci.yml/badge.svg)
-![AUR version](https://img.shields.io/aur/version/linkrot-bin)
-![Release](https://img.shields.io/github/v/release/rubiin/linkrot)
+[![CI](https://github.com/rubiin/linkrot/actions/workflows/ci.yml/badge.svg)](https://github.com/rubiin/linkrot/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rubiin/linkrot.svg)](https://pkg.go.dev/github.com/rubiin/linkrot)
+[![Release](https://img.shields.io/github/v/release/rubiin/linkrot)](https://github.com/rubiin/linkrot/releases/latest)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
 <img alt="linkrot logo" width="300" alt="logo-Photoroom" src="https://github.com/user-attachments/assets/596e908d-58ae-419c-b0d9-8cfa0bf20ac9" />
 
