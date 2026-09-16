@@ -29,4 +29,7 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: go build -ldflags "-s -w" -o linkrot ./cmd/linkrot
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
+          echo "Building version: ${VERSION}"
+          go build -ldflags "-s -w -X main.version=${VERSION}" -o linkrot ./cmd/linkrot
