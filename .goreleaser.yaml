@@ -32,13 +32,6 @@ archives:
     files:
       - LICENSE
 
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-
 aurs:
   - name: linkrot-bin
     homepage: https://github.com/rubiin/linkrot
