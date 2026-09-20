@@ -1,9 +1,12 @@
 default:
     @just --list
 
+version := `git describe --tags --always --dirty 2>/dev/null || echo dev`
+
 # Build the linkrot binary
 build:
-    go build -ldflags "-s -w" -o linkrot ./cmd/linkrot
+    @echo "Building shelf version: {{version}}"
+    go build -ldflags "-s -w -X main.version={{version}}" -o shelf ./cmd/linkrot
 
 # Run all tests
 test:
